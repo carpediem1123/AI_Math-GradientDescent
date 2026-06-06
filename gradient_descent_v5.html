@@ -532,7 +532,7 @@ let fillA0=1, fillK=0.05, fillThresh=2;
 function buildTable(){
   // 함수 파싱 재확인
   const fF=parseFn($('inp-fa').value.trim()), fD=parseFn($('inp-da').value.trim());
-  if(!fF||!fD){alert('E(a) 또는 E'(a) 수식에 오류가 있습니다. 확인 후 다시 시도하세요.');return;}
+  if(!fF||!fD){alert("E(a) 또는 E'(a) 수식에 오류가 있습니다. 확인 후 다시 시도하세요.");return;}
   probF=fF; probDa=fD;
   userFaStr=$('inp-fa').value.trim(); userDaStr=$('inp-da').value.trim();
 
@@ -579,9 +579,7 @@ function addRow(idx, aVal, prevStep){
   }
 
   // ── E'(a) 힌트 내용
-  // E'(a) 힌트: userDaStr에서 'a'를 실제 값으로 치환해서 표시
-  const daDisp2 = userDaStr.replace(/\*\*/g,'^').replace(/Math\.pow\(([^,]+),([^)]+)\)/g,'$1^$2');
-  const formulaDa_hint=`${daDisp2.replace(/\ba\b/g, fmt(aVal))} = ${fmt(probDa(aVal))}`;
+  const formulaDa_hint = makeDaHint(aVal);
 
   tr.innerHTML=`
     <td class="td-step">a<sub>${idx}</sub></td>
@@ -589,14 +587,14 @@ function addRow(idx, aVal, prevStep){
     <td class="td-formula">
       <span id="ha-${idx}" class="formula-hidden">${formulaA_hint}</span>
     </td>
-    <td class="td-inp"><input class="fi" type="number" step="any" id="ia-${idx}" data-ans="${step.a}" placeholder="?" ${idx===0?`value="${step.a}" readonly`:''} oninput="onAInput(${idx},this)"></td>
+    <td class="td-inp"><input class="fi" type="number" step="any" id="ia-${idx}" data-ans="${step.a}" placeholder="0" ${idx===0?`value="${step.a}" readonly`:''} oninput="onAInput(${idx},this)"></td>
     <td class="td-div"></td>
     <td class="td-step">E'(a<sub>${idx}</sub>)</td>
     <td class="td-hint"><button class="hint-btn" title="계산식 힌트" onclick="toggleHint('hd-${idx}')">?</button></td>
     <td class="td-formula">
       <span id="hd-${idx}" class="formula-hidden">${formulaDa_hint}</span>
     </td>
-    <td class="td-inp"><input class="fi" type="number" step="any" id="id-${idx}" data-ans="${step.da}" placeholder="?" oninput="onDaInput(${idx},this)"></td>
+    <td class="td-inp"><input class="fi" type="number" step="any" id="id-${idx}" data-ans="${step.da}" placeholder="0" title="E'(a${idx}) 값을 계산하여 입력하세요" oninput="onDaInput(${idx},this)"></td>
   `;
 
   // a₀는 readonly이고 값 고정
@@ -718,6 +716,16 @@ function updateChart(){
 }
 
 function fmt(v){if(Math.abs(v)<1e-7) return '0'; return parseFloat(v.toFixed(6)).toString();}
+
+// E'(a) 힌트 문자열 생성 — 도함수 식의 'a'를 실제 값으로 치환
+function makeDaHint(aVal){
+  const wordA = new RegExp('\\b' + 'a' + '\\b', 'g');
+  const dispStr = userDaStr
+    .replace(/\*\*/g, '^')
+    .replace(/Math\.pow\(([^,]+),([^)]+)\)/g, '$1^$2');
+  const substituted = dispStr.replace(wordA, fmt(aVal));
+  return substituted + ' = ' + fmt(probDa(aVal));
+}
 
 // ── 탐구 결과 전송 ──
 
