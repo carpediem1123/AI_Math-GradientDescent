@@ -215,6 +215,21 @@ select:focus{border-color:var(--blue)}
   </div>
 </div>
 
+<!-- ── Google Sheets 연동 설정 (교사가 URL 입력) ── -->
+<div id="sheets-cfg" style="max-width:960px;margin:.4rem auto .2rem;
+  background:rgba(26,95,168,.08);border:1px solid rgba(26,95,168,.2);
+  border-radius:8px;padding:.55rem 1rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+  <span style="font-size:11px;font-family:var(--mono);color:#5bc8ff;white-space:nowrap">📡 Google Sheets URL</span>
+  <input type="text" id="gs-url"
+    placeholder="Apps Script 웹앱 URL을 붙여넣으세요 (교사 설정)"
+    style="flex:1;min-width:200px;background:#0a1628;border:1px solid #2a4a6a;border-radius:5px;
+      padding:.3rem .7rem;font-size:11px;font-family:var(--mono);color:#c8d8e8;outline:none">
+  <button onclick="saveGsUrl()"
+    style="background:#1a5fa8;border:none;border-radius:5px;padding:.3rem .8rem;
+      font-size:11px;color:#fff;cursor:pointer;font-family:var(--mono)">저장</button>
+  <span id="gs-url-status" style="font-size:11px;font-family:var(--mono);color:#5bc8ff"></span>
+</div>
+
 <div class="tabs">
   <button class="tab active" onclick="sw('fill')">① 갱신 과정 탐구</button>
   <button class="tab" onclick="sw('sim')">② 자유 시뮬레이션</button>
@@ -416,6 +431,7 @@ select:focus{border-color:var(--blue)}
     <div class="done-box">
       <div class="done-score" id="sc-disp"></div>
       <div class="done-msg" id="sc-msg"></div>
+      <button class="btn btn-primary" style="margin:.6rem .3rem 0;font-size:13px" onclick="sendCombinedResult()">📤 구글시트 전송</button>
       <div id="q-detail" style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:1.1rem"></div>
       <div class="btn-group">
         <button class="btn btn-secondary" onclick="resetQ()">다시 풀기</button>
@@ -562,7 +578,7 @@ function addRow(idx, aVal, prevStep){
   const da = probDa(aVal);
   const newA = aVal - fillK * da;
 
-  const step = {idx, a:parseFloat(aVal.toFixed(8)), da:parseFloat(da.toFixed(8)), newA:parseFloat(newA.toFixed(8))};
+  const step = {idx, a:parseFloat(aVal.toFixed(3)), da:parseFloat(da.toFixed(3)), newA:parseFloat(newA.toFixed(3))};
   fillSteps.push(step);
 
   const tb = $('fill-tbody');
@@ -631,7 +647,7 @@ function onAInput(idx, el){
   el.classList.remove('ok','ng');
   const ans=parseFloat(el.dataset.ans), val=parseFloat(el.value);
   if(isNaN(val)) return;
-  if(Math.abs(val-ans)<0.005){
+  if(Math.abs(val-ans)<0.001){
     el.classList.add('ok');
   } else {
     el.classList.add('ng');
@@ -644,7 +660,7 @@ function onDaInput(idx, el){
   const ans=parseFloat(el.dataset.ans), val=parseFloat(el.value);
   if(isNaN(val)) return;
 
-  const correct=Math.abs(val-ans)<0.005;
+  const correct=Math.abs(val-ans)<0.001;
   el.classList.add(correct?'ok':'ng');
   if(!correct) return; // 오답이면 진행 안 함
 
@@ -659,7 +675,7 @@ function onDaInput(idx, el){
     tr.classList.add('stop-row');
     fillDone=true;
     $('fill-stop-box').style.display='block';
-    $('fill-stop-box').textContent=`✓ 중단 조건 달성! |E'(a${idx})| = ${Math.abs(val).toFixed(4)} < ${fillThresh}. 결정된 매개변수 a = ${fmt(fillSteps[idx].a)}`;
+    $('fill-stop-box').textContent=`✓ 중단 조건 달성! |E'(a${idx})| = ${Math.abs(val).toFixed(3)} < ${fillThresh}. 결정된 매개변수 a = ${fmt(fillSteps[idx].a)}`;
     $('fill-conclusion').style.display='block';
     $('conc-a').textContent='a = ' + fmt(fillSteps[idx].a);
     // a 입력도 lock
@@ -715,7 +731,7 @@ function updateChart(){
   });
 }
 
-function fmt(v){if(Math.abs(v)<1e-7) return '0'; return parseFloat(v.toFixed(6)).toString();}
+function fmt(v){if(Math.abs(v)<1e-7) return '0'; return parseFloat(v.toFixed(3)).toString();}
 
 // E'(a) 힌트 문자열 생성 — 도함수 식의 'a'를 실제 값으로 치환
 function makeDaHint(aVal){
@@ -724,7 +740,7 @@ function makeDaHint(aVal){
     .replace(/\*\*/g, '^')
     .replace(/Math\.pow\(([^,]+),([^)]+)\)/g, '$1^$2');
   const substituted = dispStr.replace(wordA, fmt(aVal));
-  return substituted + ' = ' + fmt(probDa(aVal));
+  return substituted;  // 식까지만 표시, 답(= 값) 제거
 }
 
 // ── 탐구 결과 전송 ──
@@ -758,7 +774,7 @@ function updSim(){
     if(Math.abs(a)>1e7) break;
   }
   const af=pts[pts.length-1].x, div=Math.abs(af)>1e6, conv=!div&&Math.abs(af-fn.opt)<0.05;
-  $('ss-af').textContent=div?'발산':af.toFixed(4);
+  $('ss-af').textContent=div?'발산':af.toFixed(3);
   $('ss-conv').innerHTML=div?'<span class="badge badge-no">발산</span>':conv?'<span class="badge badge-ok">수렴</span>':'<span class="badge badge-warn">진행중</span>';
 
   const step=Math.max(1,Math.floor(pts.length/14)), sparse=[];
@@ -860,6 +876,101 @@ function nextQ(){
 function resetQ(){qi=0;score=0;answered=false;qResults=[];$('quiz-sec').style.display='block';$('quiz-done').style.display='none';renderQ();}
 
 
+// ── Google Sheets 연동 함수 ──────────────────────────────
+function saveGsUrl(){
+  const url = $('gs-url').value.trim();
+  if(!url){ $('gs-url-status').textContent='⚠ URL을 입력하세요'; return; }
+  try{ localStorage.setItem('gd_gs_url', url); }catch(e){}
+  $('gs-url-status').textContent='✓ 저장됨';
+  setTimeout(()=>{ $('gs-url-status').textContent=''; }, 2000);
+}
+
+function loadGsUrl(){
+  try{ return localStorage.getItem('gd_gs_url')||''; }catch(e){ return ''; }
+}
+
+async function sendData(payload, statusId){
+  const url = $('gs-url').value.trim() || loadGsUrl();
+  const st = statusId ? $(statusId) : null;
+  if(!url){
+    if(st){ st.className='send-status show send-err';
+      st.textContent='⚠ Google Sheets URL이 설정되지 않았습니다. 상단 입력칸에 URL을 넣어주세요.'; }
+    return;
+  }
+  if(st){ st.className='send-status show'; st.textContent='전송 중…'; }
+  try{
+    await fetch(url, {method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)});
+    if(st){ st.className='send-status show send-ok'; st.textContent='✅ 전송 완료!'; }
+  } catch(e){
+    if(st){ st.className='send-status show send-err'; st.textContent='❌ 전송 실패: '+e.message; }
+  }
+}
+
+async function sendCombinedResult(){
+  const s = getStudent();
+  const st = $('send-status-quiz');
+  if(!s.cls||!s.num||!s.name){
+    if(st){ st.className='send-status show send-err';
+      st.textContent='⚠ 학생 정보를 먼저 입력하세요.'; }
+    return;
+  }
+
+  // 탐구 결과 수집
+  const fa = userFaStr||$('inp-fa').value||'—';
+  const da = userDaStr||$('inp-da').value||'—';
+  const a0val = fillA0||parseFloat($('inp-a0').value)||'—';
+  const kval  = fillK||parseFloat($('inp-k').value)||'—';
+  const thresh = fillThresh||parseFloat($('inp-thresh').value)||'—';
+  const finalA = fillSteps.length>0 ? fmt(fillSteps[fillSteps.length-1].a) : '미완료';
+  const fillCount = fillSteps.length > 0 ? fillSteps.length-1 : 0;
+  const fillDoneFlag = typeof fillDone!=='undefined' ? fillDone : false;
+
+  // 퀴즈 점수
+  const quizScore = score;
+  const quizTotal = QS.length;
+  const pct = Math.round(quizScore/quizTotal*100);
+
+  // 퀴즈 문항별 정오
+  const qDetail = {};
+  QS.forEach((q,i)=>{ qDetail['q'+(i+1)] = qResults[i]||'—'; });
+
+  // 세특 자동 생성
+  const seSpecStr = makeSeSpec(s, fa, da, a0val, kval, thresh, finalA, fillCount, fillDoneFlag, quizScore, quizTotal);
+
+  const payload = {
+    type:'combined', timestamp: new Date().toISOString(),
+    // 학생 정보
+    cls:s.cls, num:s.num, name:s.name,
+    // 탐구 결과
+    fa, da, a0:a0val, k:kval, thresh,
+    finalA, fillCount, fillDone: fillDoneFlag ? '완료' : '미완료',
+    // 퀴즈 결과
+    quizScore, quizTotal, quizPct: pct,
+    ...qDetail,
+    // 세특
+    seSpec: seSpecStr
+  };
+
+  await sendData(payload, 'send-status-quiz');
+}
+
+// ── 세특 자동 생성 ────────────────────────────────
+function makeSeSpec(s, fa, da, a0, k, thresh, finalA, steps, done, qScore, qTotal){
+  const pct = Math.round(qScore/qTotal*100);
+  let level, levelDesc;
+  if(pct >= 83){ level='상'; levelDesc='경사하강법의 원리를 정확히 이해하고 매개변수 갱신 과정을 능숙하게 수행함'; }
+  else if(pct >= 50){ level='중'; levelDesc='경사하강법의 기본 개념을 이해하고 갱신 과정을 수행하였으나 일부 오류가 있었음'; }
+  else{ level='하'; levelDesc='경사하강법의 개념 이해에 어려움이 있으며 추가 학습이 필요함'; }
+
+  const fillDesc = done
+    ? `손실함수 E(a)=${fa}에서 E'(a)=${da}를 도출하고, 초기값 a₀=${a0}, 학습률 k=${k}, 중단조건 |E'(a)|<${thresh}로 설정하여 ${steps}회 갱신 끝에 최솟값 근방의 매개변수 a=${finalA}를 결정함`
+    : `손실함수 E(a)=${fa}에 대해 경사하강법 탐구를 시도하였으나 갱신 과정을 완료하지 못함`;
+
+  return `[인공지능수학] 경사하강법 단원에서 ${fillDesc}. 개념 확인 퀴즈에서 ${qTotal}문항 중 ${qScore}문항 정답(${pct}%)을 기록하여 ${levelDesc}. (성취수준: ${level})`;
+}
+
 async function sendQuizResult(){
   const s=getStudent();
   const st=$('send-status-quiz');
@@ -885,6 +996,9 @@ async function sendQuizResult(){
 });
 // 초기 지문 반영
 updateProbBox();
+// 저장된 구글시트 URL 복원
+const savedUrl = loadGsUrl();
+if(savedUrl){ try{ $('gs-url').value=savedUrl; }catch(e){} }
 updSim(); renderQ();
 </script>
 </body>
