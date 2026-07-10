@@ -364,6 +364,32 @@ select:focus{border-color:var(--blue)}
       </div>
     </div>
 
+    <!-- 자유 서술 칸 -->
+    <div id="reflection-card" class="card" style="display:none">
+      <div class="card-title">✏ 탐구 소감 &amp; 발견한 점 <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:.5rem">(선택 — 교사에게 함께 전송됩니다)</span></div>
+      <div style="margin-bottom:.5rem">
+        <label style="font-size:12px;color:var(--text2);font-family:var(--mono)">① 탐구하면서 발견한 점 / 어려웠던 점</label>
+        <textarea id="reflect-discovery" rows="3" placeholder="예) 학습률 k를 0.1로 바꾸니 수렴 속도가 달라졌다. 갱신 횟수가 줄어들었는데..."
+          style="width:100%;margin-top:.3rem;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;
+            padding:.55rem .75rem;font-size:13px;color:var(--text1);font-family:var(--sans);resize:vertical;outline:none;line-height:1.6"></textarea>
+      </div>
+      <div style="margin-bottom:.5rem">
+        <label style="font-size:12px;color:var(--text2);font-family:var(--mono)">② 경사하강법이 실생활 AI에 어떻게 활용될지 나의 생각</label>
+        <textarea id="reflect-application" rows="3" placeholder="예) 넷플릭스 추천 알고리즘처럼 사용자의 취향을 학습할 때 손실함수를 최소화하는 방식으로..."
+          style="width:100%;margin-top:.3rem;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;
+            padding:.55rem .75rem;font-size:13px;color:var(--text1);font-family:var(--sans);resize:vertical;outline:none;line-height:1.6"></textarea>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text2);font-family:var(--mono)">③ 추가로 탐구해보고 싶은 내용</label>
+        <textarea id="reflect-curious" rows="2" placeholder="예) 학습률을 자동으로 조절하는 방법이 있는지 궁금하다..."
+          style="width:100%;margin-top:.3rem;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;
+            padding:.55rem .75rem;font-size:13px;color:var(--text1);font-family:var(--sans);resize:vertical;outline:none;line-height:1.6"></textarea>
+      </div>
+      <div style="margin-top:.7rem;font-size:11px;color:var(--text3)">
+        💡 퀴즈까지 완료하면 탐구 결과 + 소감 + 퀴즈 점수가 교사에게 자동 전송됩니다.
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">E(a) 그래프 + 갱신 경로</div>
       <div class="chart-wrap"><canvas id="fillChart"></canvas></div>
@@ -431,12 +457,22 @@ select:focus{border-color:var(--blue)}
     <div class="done-box">
       <div class="done-score" id="sc-disp"></div>
       <div class="done-msg" id="sc-msg"></div>
-      <button class="btn btn-primary" style="margin:.6rem .3rem 0;font-size:13px" onclick="sendCombinedResult()">📤 구글시트 전송</button>
-      <div id="q-detail" style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:1.1rem"></div>
-      <div class="btn-group">
-        <button class="btn btn-secondary" onclick="resetQ()">다시 풀기</button>
-        <button class="btn btn-secondary" onclick="sw('fill')">갱신 탐구로 돌아가기</button>
+
+      <!-- 자동 전송 상태 -->
+      <div id="auto-send-status" style="margin:.6rem 0 .4rem;font-size:12px;font-family:var(--mono);
+        padding:.4rem .9rem;border-radius:6px;display:inline-block"></div>
+
+      <!-- 문항별 결과 -->
+      <div id="q-detail" style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:1rem"></div>
+
+      <!-- 재전송 / 다시 풀기 -->
+      <div class="btn-group" style="gap:.5rem;flex-wrap:wrap;justify-content:center">
+        <button class="btn btn-secondary" onclick="resetQ()">🔄 다시 풀기</button>
+        <button id="btn-resend" class="btn btn-primary" style="font-size:13px;display:none"
+          onclick="sendCombinedResult(true)">📤 재전송 (수정 후)</button>
+        <button class="btn btn-secondary" onclick="sw('fill')">← 갱신 탐구로</button>
       </div>
+      <div id="send-status-quiz" class="send-status"></div>
     </div>
   </div>
 </div>
@@ -678,6 +714,7 @@ function onDaInput(idx, el){
     $('fill-stop-box').textContent=`✓ 중단 조건 달성! |E'(a${idx})| = ${Math.abs(val).toFixed(3)} < ${fillThresh}. 결정된 매개변수 a = ${fmt(fillSteps[idx].a)}`;
     $('fill-conclusion').style.display='block';
     $('conc-a').textContent='a = ' + fmt(fillSteps[idx].a);
+    $('reflection-card').style.display='block';
     // a 입력도 lock
     const iaEl=$(`ia-${idx}`); if(iaEl) iaEl.disabled=true;
     el.disabled=true;
@@ -705,6 +742,7 @@ function resetFill(){
   $('fill-stop-box').style.display='none';
   $('fill-warn-box').style.display='none';
   $('fill-conclusion').style.display='none';
+  $('reflection-card').style.display='none';
   $('fill-tbody').innerHTML='';
   if(fillChart2){fillChart2.destroy();fillChart2=null;}
 }
@@ -804,21 +842,11 @@ function updSim(){
 // ══════════════════════════════════════════════
 // TAB 3: 퀴즈
 // ══════════════════════════════════════════════
-const QS=[
-  // ── 계산 적용 문제 (문제 5 직결) ──
-  {q:"E(a) = 5a² + 7일 때, E'(a)를 올바르게 구한 것은?",
-   opts:["E'(a) = 5a","E'(a) = 10a","E'(a) = 10a + 7","E'(a) = 2a"],
-   ans:1,ex:"다항함수 미분: E'(a) = 2×5×a = 10a. 상수항 7을 미분하면 0입니다."},
-  {q:"학습률 k = 0.05, 현재 a = 1일 때 갱신 후 a₁ 값은?",
-   opts:["a₁ = 0.5","a₁ = 0.95","a₁ = 1.5","a₁ = 0"],
-   ans:0,ex:"a₁ = a₀ − k·E'(a₀) = 1 − 0.05×10×1 = 1 − 0.5 = 0.5"},
-  {q:"E(a) = 5a² + 7의 최솟값과 그때의 a 값은?",
-   opts:["E = 0, a = 0","E = 7, a = 0","E = 5, a = 1","E = 12, a = 1"],
-   ans:1,ex:"5a² ≥ 0이므로 a = 0일 때 E(0) = 7이 최솟값입니다."},
-  {q:"중단 조건 |E'(a)| < 2에 의해 결정된 매개변수 a의 값은? (단, E'(a) = 10a, a₀ = 1, k = 0.05)",
-   opts:["a = 0.5","a = 0.25","a = 0.125","a = 0.0625"],
-   ans:2,ex:"a₀=1 → a₁=0.5 → a₂=0.25 → a₃=0.125. |E'(0.125)| = 1.25 < 2이므로 a₃ = 0.125에서 중단합니다."},
-  // ── 개념 이해 문제 ──
+// ── 탐구 직결 문항 풀 (학생 문제에 맞게 동적 생성) ────────────────
+// makeLinkedQ()로 런타임에 생성됨 — 아래 CONCEPT_QS와 합쳐 QS 구성
+
+// ── 개념 이해 문항 풀 (15개 → 매번 랜덤 4개 선택) ─────────────────
+const CONCEPT_QS = [
   {q:"경사하강법에서 매개변수를 업데이트할 때 이동하는 방향은?",
    opts:["손실함수 기울기(미분값)의 방향으로","손실함수 기울기(미분값)의 반대 방향으로","손실값이 큰 방향으로","초기값 방향으로"],
    ans:1,ex:"기울기의 반대 방향으로 이동해야 손실이 줄어드는 곳(최솟값)으로 내려갈 수 있습니다."},
@@ -836,10 +864,131 @@ const QS=[
    ans:2,ex:"k가 작을수록 한 번의 이동 폭이 작아져 최솟값에 도달하는 데 더 많은 반복이 필요합니다."},
   {q:"갱신 횟수를 충분히 늘렸을 때, 학습률이 적절하다면 일반적으로 어떤 변화가 생기나요?",
    opts:["손실값이 점점 커진다","매개변수 a가 이론 최솟값에 더 가까워진다","학습률이 자동으로 커진다","초기값이 바뀐다"],
-   ans:1,ex:"충분한 횟수를 반복하면 점진적으로 최솟값에 접근합니다. 자유 시뮬레이션 탭에서 직접 확인해 보세요!"}
+   ans:1,ex:"충분한 횟수를 반복하면 점진적으로 최솟값에 접근합니다. 자유 시뮬레이션 탭에서 직접 확인해 보세요!"},
+  {q:"경사하강법에서 '손실함수(Loss Function)'의 역할은 무엇인가요?",
+   opts:["매개변수의 초기값을 결정한다","모델의 예측 오차를 수치화한다","학습률을 자동으로 조정한다","갱신 횟수를 제한한다"],
+   ans:1,ex:"손실함수는 모델의 예측값과 실제값의 차이를 수치로 나타내며, 이 값을 최소화하는 것이 목표입니다."},
+  {q:"경사하강법에서 '경사(Gradient)'가 의미하는 것은?",
+   opts:["손실함수의 최솟값","손실함수의 미분값(기울기)","매개변수의 변화량","학습률의 크기"],
+   ans:1,ex:"경사(Gradient)는 함수의 기울기, 즉 미분값을 의미합니다. 이 방향의 반대로 이동하면 손실이 줄어듭니다."},
+  {q:"다음 중 경사하강법이 활용되는 분야로 가장 거리가 먼 것은?",
+   opts:["인공지능 모델 학습","딥러닝 신경망 가중치 최적화","선형 회귀 계수 추정","데이터베이스 정렬 알고리즘"],
+   ans:3,ex:"경사하강법은 최적화 알고리즘으로 AI/ML 학습에 핵심적으로 사용되지만, 데이터 정렬과는 관련이 없습니다."},
+  {q:"갱신식 aₙ₊₁ = aₙ − k·E'(aₙ) 에서 빼기(−) 부호를 쓰는 이유는?",
+   opts:["계산 편의를 위해","기울기 반대 방향으로 이동하기 위해","손실함수를 미분하기 위해","k를 양수로 만들기 위해"],
+   ans:1,ex:"손실을 줄이려면 기울기(E'(a))가 가리키는 방향의 반대로 이동해야 하므로 빼기 부호를 사용합니다."},
+  {q:"E(a) = (a-2)² + 3 에서 경사하강법으로 수렴하는 최솟값 지점의 a 는?",
+   opts:["a = 0","a = 1","a = 2","a = 3"],
+   ans:2,ex:"(a-2)² ≥ 0 이므로 a=2일 때 E(2)=3이 최솟값. E'(a)=2(a-2)=0 → a=2"},
+  {q:"E'(a) = 6a 이고 현재 a = 3, k = 0.1 일 때 갱신 후 a 값은?",
+   opts:["a = 1.2","a = 1.8","a = 2.4","a = 3.6"],
+   ans:1,ex:"a₁ = 3 − 0.1 × 6 × 3 = 3 − 1.8 = 1.8"},
+  {q:"경사하강법에서 초기값 a₀가 달라도 결과가 동일한 경우는 언제인가요?",
+   opts:["손실함수에 극솟값이 여러 개일 때","손실함수가 볼록함수(아래로 볼록)일 때","k가 매우 클 때","갱신 횟수가 적을 때"],
+   ans:1,ex:"아래로 볼록한 함수(전역 최솟값 1개)에서는 초기값에 상관없이 동일한 최솟값으로 수렴합니다."},
+  {q:"다음 중 경사하강법이 '발산'한다고 볼 수 있는 경우는?",
+   opts:["|E'(a)|이 점점 0에 가까워진다","갱신할수록 a의 절댓값이 기하급수적으로 커진다","갱신 횟수가 늘어날수록 E(a)가 줄어든다","중단 조건을 만족해서 멈춘다"],
+   ans:1,ex:"발산은 매개변수가 최솟값 방향으로 가지 않고 점점 커지는 현상입니다. 보통 k가 너무 클 때 발생합니다."},
+  {q:"아래로 볼록한 손실함수에서 E'(a) > 0 이면 다음 갱신에서 a는?",
+   opts:["증가한다","감소한다","변하지 않는다","발산한다"],
+   ans:1,ex:"aₙ₊₁ = aₙ − k·E'(aₙ). E'(a)>0이면 k·E'(a)>0이므로 a가 감소합니다. 기울기 반대 방향으로 이동하는 것입니다."}
 ];
+
+// ── 런타임에 학생 문제 기반 탐구 직결 문항 생성 ─────────────────────
+function makeLinkedQ(){
+  const fa = userFaStr || '5*a*a+7';
+  const da = userDaStr || '10*a';
+  const a0 = fillA0 || parseFloat($('inp-a0').value) || 1;
+  const k  = fillK  || parseFloat($('inp-k').value)  || 0.05;
+  const th = fillThresh || parseFloat($('inp-thresh').value) || 2;
+  const p  = typeof probDa==='function' ? probDa : (a=>10*a);
+
+  // 표시용 식 정리
+  const faDisp = fa.replace(/\*\*/g,'^').replace(/Math\.pow\(([^,]+),([^)]+)\)/g,'$1^$2').replace(/\*/g,'');
+  const daDisp = da.replace(/\*\*/g,'^').replace(/Math\.pow\(([^,]+),([^)]+)\)/g,'$1^$2').replace(/\*/g,'');
+  const da0 = fmt(p(a0));
+  const a1  = fmt(a0 - k*p(a0));
+
+  // Q1: E'(a) 식 묻기
+  const q1Wrong = [
+    daDisp.replace(/\d+(?=a)/,'?')+'×a',
+    faDisp,
+    daDisp+'+ const'
+  ].slice(0,3);
+  // 보기 4개 구성 (정답 포함 셔플)
+  const q1Opts = shuffle4([daDisp, ...q1Wrong], 0);
+
+  // Q2: a₁ 갱신값 계산
+  const a1Wrong = [fmt(a0*0.5), fmt(a0+k*p(a0)), fmt(a0-(k*2)*p(a0))];
+  const q2Opts  = shuffle4([a1, ...a1Wrong], 0);
+
+  return [
+    {
+      q: `나의 손실함수 E(a) = ${faDisp}일 때, E'(a)를 올바르게 구한 것은?`,
+      opts: q1Opts.opts,
+      ans:  q1Opts.ansIdx,
+      ex: `다항함수 미분 적용: E'(a) = ${daDisp}`
+    },
+    {
+      q: `학습률 k = ${k}, 초기값 a₀ = ${a0}일 때, 갱신 후 a₁ 값은? (E'(a) = ${daDisp})`,
+      opts: q2Opts.opts,
+      ans:  q2Opts.ansIdx,
+      ex: `a₁ = a₀ − k·E'(a₀) = ${a0} − ${k}×${da0} = ${a1}`
+    }
+  ];
+}
+
+// 보기 4개를 셔플하되 정답 인덱스 추적
+function shuffle4(arr, correctIdx){
+  // arr[correctIdx]가 정답
+  const correct = arr[correctIdx];
+  // Fisher-Yates로 셔플
+  const shuffled = [...arr];
+  for(let i=shuffled.length-1;i>0;i--){
+    const j=Math.floor(seededRand()*( i+1));
+    [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];
+  }
+  return { opts: shuffled, ansIdx: shuffled.indexOf(correct) };
+}
+
+// ── 시드 기반 랜덤 (학생별 고정) ─────────────────────────────────
+let _seed = 12345;
+function seedRand(seed){ _seed = seed; }
+function seededRand(){
+  _seed = (_seed * 1664525 + 1013904223) & 0xffffffff;
+  return ((_seed >>> 0) / 0xffffffff);
+}
+
+// ── 학생 해시로 시드 설정 후 퀴즈 배열 구성 ──────────────────────
+let QS = []; // 런타임에 buildQuiz()로 채워짐
+
+function buildQuiz(){
+  // 학생 해시로 시드 설정
+  const s = getStudent();
+  const seedStr = (s.cls||'0')+(s.num||'0')+(s.name||'guest');
+  let h=0;
+  for(let i=0;i<seedStr.length;i++) h=(Math.imul(31,h)+seedStr.charCodeAt(i))|0;
+  seedRand(Math.abs(h)||9999);
+
+  // 탐구 직결 2문항 (고정, 앞에)
+  const linked = makeLinkedQ();
+
+  // 개념 문항 풀에서 랜덤 4개 선택
+  const pool = [...CONCEPT_QS];
+  for(let i=pool.length-1;i>0;i--){
+    const j=Math.floor(seededRand()*(i+1));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+  }
+  const picked = pool.slice(0,4);
+
+  QS = [...linked, ...picked];
+  // 총 6문항 (탐구직결 2 + 개념랜덤 4)
+}
+
+// ── 퀴즈 초기화 시 buildQuiz() 먼저 호출 ─────────────────────────
 let qi=0,score=0,answered=false,qResults=[];
 function renderQ(){
+  if(QS.length===0) buildQuiz();
   const q=QS[qi];
   $('qnum').textContent=`문제 ${qi+1} / ${QS.length}`;
   $('qq').textContent=q.q;
@@ -865,6 +1014,7 @@ function nextQ(){
   qi++;
   if(qi>=QS.length){
     $('quiz-sec').style.display='none';$('quiz-done').style.display='block';
+    autoSendOnFirstComplete();
     $('sc-disp').textContent=`${score} / ${QS.length}`;
     const msgs=['다시 도전!','조금만 더!','잘했어요!','훌륭해요!','아주 잘했어요!','완벽!','완벽!','완벽!','완벽!'];
     $('sc-msg').textContent=msgs[score]||'잘했어요!';
@@ -873,7 +1023,7 @@ function nextQ(){
     qResults.forEach((r,i)=>{const s=document.createElement('span');s.className='badge '+(r==='O'?'badge-ok':'badge-no');s.textContent=`Q${i+1} ${r}`;det.appendChild(s);});
   } else renderQ();
 }
-function resetQ(){qi=0;score=0;answered=false;qResults=[];$('quiz-sec').style.display='block';$('quiz-done').style.display='none';renderQ();}
+function resetQ(){qi=0;score=0;answered=false;qResults=[];buildQuiz();$('quiz-sec').style.display='block';$('quiz-done').style.display='none';renderQ();}
 
 
 // ── Google Sheets 연동 함수 ──────────────────────────────
@@ -908,7 +1058,48 @@ async function sendData(payload, statusId){
   }
 }
 
-async function sendCombinedResult(){
+// ── 최초 1회 자동 전송 ─────────────────────────────────────────
+const LS_SENT_KEY = 'gd_quiz_sent';
+
+function getSentKey(){
+  const s=getStudent();
+  return LS_SENT_KEY+'_'+(s.cls||'')+'_'+(s.num||'')+'_'+(s.name||'');
+}
+
+async function autoSendOnFirstComplete(){
+  const key = getSentKey();
+  let alreadySent = false;
+  try{ alreadySent = !!localStorage.getItem(key); }catch(e){}
+
+  const statusEl = $('auto-send-status');
+  const resendBtn = $('btn-resend');
+
+  if(alreadySent){
+    // 이미 전송됨 → 재전송 버튼만 표시
+    statusEl.textContent = '✅ 최초 결과 전송 완료 (재전송하려면 아래 버튼 사용)';
+    statusEl.style.background = 'rgba(26,127,62,.12)';
+    statusEl.style.color = 'var(--green)';
+    if(resendBtn) resendBtn.style.display='inline-block';
+    return;
+  }
+
+  // 최초 전송
+  statusEl.textContent = '📡 결과를 교사에게 전송 중...';
+  statusEl.style.background = 'rgba(91,200,255,.1)';
+  statusEl.style.color = 'var(--blue)';
+
+  await sendCombinedResult(false);
+
+  // 전송 성공 여부와 무관하게 플래그 저장 (재전송 방지)
+  try{ localStorage.setItem(key, new Date().toISOString()); }catch(e){}
+
+  statusEl.textContent = '✅ 첫 번째 결과가 교사에게 자동 전송되었습니다!';
+  statusEl.style.background = 'rgba(26,127,62,.12)';
+  statusEl.style.color = 'var(--green)';
+  if(resendBtn) resendBtn.style.display='inline-block';
+}
+
+async function sendCombinedResult(isResend=false){
   const s = getStudent();
   const st = $('send-status-quiz');
   if(!s.cls||!s.num||!s.name){
@@ -937,15 +1128,23 @@ async function sendCombinedResult(){
   QS.forEach((q,i)=>{ qDetail['q'+(i+1)] = qResults[i]||'—'; });
 
   // 세특 자동 생성
-  const seSpecStr = makeSeSpec(s, fa, da, a0val, kval, thresh, finalA, fillCount, fillDoneFlag, quizScore, quizTotal);
+  const seSpecStr = makeSeSpec(s, fa, da, a0val, kval, thresh, finalA, fillCount, fillDoneFlag, quizScore, quizTotal, reflectDiscovery, reflectApplication);
+
+  // 자유 서술 수집
+  const reflectDiscovery = ($('reflect-discovery')||{value:''}).value.trim();
+  const reflectApplication = ($('reflect-application')||{value:''}).value.trim();
+  const reflectCurious = ($('reflect-curious')||{value:''}).value.trim();
+  const sendType = isResend ? 'resend' : 'combined';
 
   const payload = {
-    type:'combined', timestamp: new Date().toISOString(),
+    type: sendType, timestamp: new Date().toISOString(),
     // 학생 정보
     cls:s.cls, num:s.num, name:s.name,
     // 탐구 결과
     fa, da, a0:a0val, k:kval, thresh,
     finalA, fillCount, fillDone: fillDoneFlag ? '완료' : '미완료',
+    // 자유 서술
+    reflectDiscovery, reflectApplication, reflectCurious,
     // 퀴즈 결과
     quizScore, quizTotal, quizPct: pct,
     ...qDetail,
@@ -957,7 +1156,7 @@ async function sendCombinedResult(){
 }
 
 // ── 세특 자동 생성 ────────────────────────────────
-function makeSeSpec(s, fa, da, a0, k, thresh, finalA, steps, done, qScore, qTotal){
+function makeSeSpec(s, fa, da, a0, k, thresh, finalA, steps, done, qScore, qTotal, reflect1, reflect2){
   const pct = Math.round(qScore/qTotal*100);
   let level, levelDesc;
   if(pct >= 83){ level='상'; levelDesc='경사하강법의 원리를 정확히 이해하고 매개변수 갱신 과정을 능숙하게 수행함'; }
@@ -968,7 +1167,10 @@ function makeSeSpec(s, fa, da, a0, k, thresh, finalA, steps, done, qScore, qTota
     ? `손실함수 E(a)=${fa}에서 E'(a)=${da}를 도출하고, 초기값 a₀=${a0}, 학습률 k=${k}, 중단조건 |E'(a)|<${thresh}로 설정하여 ${steps}회 갱신 끝에 최솟값 근방의 매개변수 a=${finalA}를 결정함`
     : `손실함수 E(a)=${fa}에 대해 경사하강법 탐구를 시도하였으나 갱신 과정을 완료하지 못함`;
 
-  return `[인공지능수학] 경사하강법 단원에서 ${fillDesc}. 개념 확인 퀴즈에서 ${qTotal}문항 중 ${qScore}문항 정답(${pct}%)을 기록하여 ${levelDesc}. (성취수준: ${level})`;
+  let reflectPart = '';
+  if(reflect1) reflectPart += ` 탐구 과정에서 "${reflect1}"라고 서술하였으며,`;
+  if(reflect2) reflectPart += ` AI 활용에 대해 "${reflect2}"라고 연결 지어 사고함.`;
+  return `[인공지능수학] 경사하강법 단원에서 ${fillDesc}.${reflectPart} 개념 확인 퀴즈에서 ${qTotal}문항 중 ${qScore}문항 정답(${pct}%)을 기록하여 ${levelDesc}. (성취수준: ${level})`;
 }
 
 async function sendQuizResult(){
@@ -999,7 +1201,7 @@ updateProbBox();
 // 저장된 구글시트 URL 복원
 const savedUrl = loadGsUrl();
 if(savedUrl){ try{ $('gs-url').value=savedUrl; }catch(e){} }
-updSim(); renderQ();
+buildQuiz(); updSim(); renderQ();
 </script>
 </body>
 </html>
