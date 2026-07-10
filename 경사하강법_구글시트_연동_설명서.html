@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>경사하강법 탐구 — 구글시트 연동 설명서</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f6f3;--bg2:#fff;--bg3:#f0ede8;
+  --ink:#1a1a2e;--ink2:#4a4a6a;--ink3:#8888aa;
+  --blue:#1a5fa8;--blue-light:#e8f0fa;--blue-dim:#c6d8f5;
+  --green:#1a7a3c;--green-light:#e8f5ed;--green-dim:#b6e0c4;
+  --orange:#c85a00;--orange-light:#fff3e8;
+  --red:#c0392b;--red-light:#fdecea;
+  --purple:#6c3483;--purple-light:#f5eef8;
+  --gold:#7a5c00;--gold-light:#fdf6dc;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Noto Sans KR',sans-serif;
+  --r:8px;--r-lg:14px;
+  --shadow:0 2px 12px rgba(0,0,0,.07);
+  --shadow-lg:0 6px 28px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7}
+body{padding:2rem 1rem 6rem;max-width:860px;margin:0 auto}
+
+/* ── 헤더 ── */
+.doc-header{background:var(--ink);color:#fff;border-radius:var(--r-lg);padding:2.4rem 2.2rem 2rem;margin-bottom:2.4rem;position:relative;overflow:hidden}
+.doc-header::before{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(-45deg,transparent,transparent 18px,rgba(255,255,255,.025) 18px,rgba(255,255,255,.025) 36px)}
+.doc-header .label{font-size:11px;font-family:var(--mono);letter-spacing:.15em;
+  color:rgba(255,255,255,.5);margin-bottom:.5rem;text-transform:uppercase}
+.doc-header h1{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1.25;margin-bottom:.6rem}
+.doc-header .sub{font-size:13px;color:rgba(255,255,255,.6);line-height:1.8}
+.badge-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1.1rem}
+.badge{font-size:11px;font-family:var(--mono);padding:3px 10px;border-radius:4px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.8)}
+
+/* ── 목차 ── */
+.toc{background:var(--blue-light);border:1.5px solid var(--blue-dim);border-radius:var(--r);
+  padding:1.2rem 1.4rem;margin-bottom:2.4rem}
+.toc h2{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:.7rem;letter-spacing:.05em}
+.toc ol{padding-left:1.4rem}
+.toc li{font-size:13px;color:var(--ink2);margin-bottom:.3rem}
+.toc a{color:var(--blue);text-decoration:none;font-weight:500}
+.toc a:hover{text-decoration:underline}
+
+/* ── 섹션 ── */
+.section{margin-bottom:3rem}
+.section-head{display:flex;align-items:center;gap:.8rem;margin-bottom:1.2rem;padding-bottom:.7rem;
+  border-bottom:2px solid var(--bg3)}
+.step-num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:900;font-family:var(--mono);flex-shrink:0}
+.step-num.blue{background:var(--blue);color:#fff}
+.step-num.green{background:var(--green);color:#fff}
+.step-num.orange{background:var(--orange);color:#fff}
+.step-num.purple{background:var(--purple);color:#fff}
+.step-num.gold{background:var(--gold);color:#fff}
+.section-head h2{font-size:19px;font-weight:900;color:var(--ink);letter-spacing:-.01em}
+.section-head .section-sub{font-size:12px;color:var(--ink3);font-family:var(--mono);margin-top:.15rem}
+
+/* ── 카드 ── */
+.card{background:var(--bg2);border:1.5px solid var(--bg3);border-radius:var(--r);
+  padding:1.2rem 1.4rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.card.green{border-color:var(--green-dim);background:var(--green-light)}
+.card.blue{border-color:var(--blue-dim);background:var(--blue-light)}
+.card.orange{border-color:#f5d5b8;background:var(--orange-light)}
+.card.red{border-color:#f5c6c6;background:var(--red-light)}
+.card.gold{border-color:#ead98a;background:var(--gold-light)}
+.card.purple{border-color:#d7c0e8;background:var(--purple-light)}
+
+/* ── 스텝 박스 ── */
+.steps{counter-reset:step;display:flex;flex-direction:column;gap:.7rem}
+.step-item{display:flex;gap:1rem;align-items:flex-start;background:var(--bg2);
+  border:1px solid var(--bg3);border-radius:var(--r);padding:.9rem 1.1rem}
+.step-item::before{counter-increment:step;content:counter(step);
+  min-width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;
+  font-size:12px;font-weight:700;font-family:var(--mono);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.05rem}
+.step-item .step-text{font-size:14px;color:var(--ink);line-height:1.7}
+.step-item .step-text strong{color:var(--ink);font-weight:700}
+.step-item .step-text .mono{font-family:var(--mono);font-size:12.5px;
+  background:var(--bg3);padding:1px 5px;border-radius:3px;color:var(--blue)}
+.step-item .step-text .path{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+
+/* ── 코드 블록 ── */
+.code-block{background:#1a1a2e;border-radius:var(--r);padding:1.1rem 1.3rem;margin:.6rem 0;
+  overflow-x:auto;position:relative}
+.code-block pre{font-family:var(--mono);font-size:12.5px;color:#c8d8e8;line-height:1.7;white-space:pre}
+.code-block .cb-label{font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.3);
+  letter-spacing:.1em;margin-bottom:.5rem;text-transform:uppercase}
+.copy-btn{position:absolute;top:.7rem;right:.7rem;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.15);border-radius:4px;color:rgba(255,255,255,.6);
+  font-size:11px;font-family:var(--mono);padding:3px 9px;cursor:pointer;transition:all .15s}
+.copy-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.copy-btn.copied{background:rgba(26,127,62,.3);color:#5bc8a0;border-color:rgba(26,127,62,.4)}
+
+/* ── 인라인 요소 ── */
+.tag{display:inline-block;font-size:11px;font-family:var(--mono);font-weight:600;
+  padding:2px 8px;border-radius:4px;vertical-align:middle}
+.tag.blue{background:var(--blue-light);color:var(--blue);border:1px solid var(--blue-dim)}
+.tag.green{background:var(--green-light);color:var(--green);border:1px solid var(--green-dim)}
+.tag.orange{background:var(--orange-light);color:var(--orange);border:1px solid #f5d5b8}
+.tag.red{background:var(--red-light);color:var(--red);border:1px solid #f5c6c6}
+
+/* ── 표 ── */
+.info-table{width:100%;border-collapse:collapse;font-size:13px;margin:.5rem 0}
+.info-table th{background:var(--ink);color:#fff;padding:8px 12px;text-align:left;font-weight:600}
+.info-table td{border:1px solid var(--bg3);padding:8px 12px;vertical-align:top}
+.info-table tr:nth-child(even) td{background:var(--bg3)}
+.info-table td.mono{font-family:var(--mono);font-size:12px;color:var(--blue)}
+
+/* ── 경고/안내 박스 ── */
+.callout{border-radius:var(--r);padding:.9rem 1.1rem;margin:.7rem 0;
+  font-size:13px;line-height:1.7;display:flex;gap:.7rem;align-items:flex-start}
+.callout.warn{background:#fff8e1;border:1px solid #f5d060}
+.callout.info{background:var(--blue-light);border:1px solid var(--blue-dim)}
+.callout.success{background:var(--green-light);border:1px solid var(--green-dim)}
+.callout.tip{background:var(--purple-light);border:1px solid #d7c0e8}
+.callout .icon{font-size:16px;flex-shrink:0;margin-top:.05rem}
+.callout .body{color:var(--ink2)}
+.callout .body strong{color:var(--ink)}
+
+/* ── 시트 미리보기 ── */
+.sheet-preview{border:1.5px solid var(--bg3);border-radius:var(--r);overflow:hidden;margin:.7rem 0}
+.sheet-tab-bar{background:var(--bg3);padding:.4rem .8rem;display:flex;gap:.3rem}
+.sheet-tab{font-size:11px;font-family:var(--mono);padding:3px 10px;border-radius:3px;
+  background:var(--bg2);border:1px solid #ccc;color:var(--ink2);cursor:default}
+.sheet-tab.active{background:#fff;border-bottom-color:#fff;font-weight:600;color:var(--ink)}
+.sheet-table{width:100%;border-collapse:collapse;font-size:11.5px;font-family:var(--mono)}
+.sheet-table th{background:#1a1a2e;color:#fff;padding:5px 8px;text-align:center;
+  font-size:10px;font-weight:500;white-space:nowrap}
+.sheet-table td{border:1px solid #e0e0e0;padding:4px 8px;white-space:nowrap;color:var(--ink)}
+.sheet-table tr:nth-child(even) td{background:#fafafa}
+.cell-green{background:#c6efce!important;color:#276221!important;font-weight:700}
+.cell-yellow{background:#ffeb9c!important;color:#9c6500!important;font-weight:700}
+.cell-red{background:#ffc7ce!important;color:#9c0006!important;font-weight:700}
+.cell-blue{color:var(--blue)!important}
+
+/* ── URL 박스 ── */
+.url-box{background:#1a1a2e;border-radius:var(--r);padding:.8rem 1.1rem;
+  display:flex;align-items:center;gap:.8rem;margin:.6rem 0}
+.url-box .url-text{font-family:var(--mono);font-size:12.5px;color:#5bc8ff;flex:1;word-break:break-all}
+.url-box button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:rgba(255,255,255,.7);font-size:11px;font-family:var(--mono);padding:4px 10px;
+  border-radius:4px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.url-box button:hover{background:rgba(255,255,255,.2)}
+
+/* ── 플로우 다이어그램 ── */
+.flow{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin:.7rem 0;font-size:13px}
+.flow-box{background:var(--bg2);border:1.5px solid var(--bg3);border-radius:var(--r);
+  padding:.45rem .9rem;font-weight:600;color:var(--ink);white-space:nowrap}
+.flow-box.blue{border-color:var(--blue-dim);background:var(--blue-light);color:var(--blue)}
+.flow-box.green{border-color:var(--green-dim);background:var(--green-light);color:var(--green)}
+.flow-box.orange{border-color:#f5d5b8;background:var(--orange-light);color:var(--orange)}
+.flow-arr{color:var(--ink3);font-size:16px;flex-shrink:0}
+
+/* ── FAQ ── */
+.faq-item{border:1px solid var(--bg3);border-radius:var(--r);margin-bottom:.6rem;overflow:hidden}
+.faq-q{padding:.85rem 1.1rem;font-weight:700;font-size:14px;color:var(--ink);
+  cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg2)}
+.faq-q:hover{background:var(--bg3)}
+.faq-q .arrow{color:var(--ink3);font-size:12px;transition:transform .2s}
+.faq-q.open .arrow{transform:rotate(180deg)}
+.faq-a{display:none;padding:.8rem 1.1rem 1rem;background:var(--bg3);
+  font-size:13px;color:var(--ink2);line-height:1.8;border-top:1px solid var(--bg3)}
+.faq-a.show{display:block}
+
+/* ── 푸터 ── */
+.doc-footer{margin-top:3rem;padding-top:1.5rem;border-top:2px solid var(--bg3);
+  font-size:12px;color:var(--ink3);text-align:center;font-family:var(--mono);line-height:2}
+
+@media(max-width:600px){
+  .doc-header h1{font-size:20px}
+  .sheet-table{font-size:10px}
+  .flow{gap:.3rem}
+  .flow-box{font-size:12px;padding:.35rem .7rem}
+}
+@media print{
+  body{max-width:100%;padding:1rem}
+  .doc-footer,.copy-btn{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ── 헤더 ── -->
+<div class="doc-header">
+  <div class="label">교사용 설명서 · AI 수학 / 경사하강법 탐구</div>
+  <h1>구글 시트로 학생 결과 받기<br>단계별 설정 가이드</h1>
+  <div class="sub">
+    학생들의 탐구 결과 · 퀴즈 점수 · 자유 서술 · 세특 초안을<br>
+    구글 시트에 자동으로 수집하는 방법을 안내합니다.
+  </div>
+  <div class="badge-row">
+    <span class="badge">AI 수학 12학년</span>
+    <span class="badge">경사하강법 탐구</span>
+    <span class="badge">Google Apps Script</span>
+    <span class="badge">소요시간 약 10분</span>
+  </div>
+</div>
+
+<!-- ── 목차 ── -->
+<div class="toc">
+  <h2>📋 목차</h2>
+  <ol>
+    <li><a href="#s1">전체 흐름 한눈에 보기</a></li>
+    <li><a href="#s2">STEP 1 — 구글 시트 + Apps Script 설정</a></li>
+    <li><a href="#s3">STEP 2 — 웹앱 URL 배포</a></li>
+    <li><a href="#s4">STEP 3 — HTML 파일에 URL 입력</a></li>
+    <li><a href="#s5">구글 시트 구성 및 활용법</a></li>
+    <li><a href="#s6">세특 초안 활용법</a></li>
+    <li><a href="#s7">자주 묻는 질문 (FAQ)</a></li>
+  </ol>
+</div>
+
+<!-- ══════════════ SECTION 0: 전체 흐름 ══════════════ -->
+<div class="section" id="s1">
+  <div class="section-head">
+    <div class="step-num blue">①</div>
+    <div>
+      <h2>전체 흐름 한눈에 보기</h2>
+      <div class="section-sub">설정 전에 전체 구조를 파악하세요</div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-box blue">학생이 HTML 접속</div>
+    <div class="flow-arr">→</div>
+    <div class="flow-box">탐구표 작성<br><span style="font-size:11px;font-weight:400">+ 자유 서술</span></div>
+    <div class="flow-arr">→</div>
+    <div class="flow-box">퀴즈 완료</div>
+    <div class="flow-arr">→</div>
+    <div class="flow-box orange">자동 전송<br><span style="font-size:11px;font-weight:400">(최초 1회)</span></div>
+    <div class="flow-arr">→</div>
+    <div class="flow-box green">구글 시트 수집<br><span style="font-size:11px;font-weight:400">+ 세특 초안 생성</span></div>
+  </div>
+
+  <div class="callout info">
+    <div class="icon">💡</div>
+    <div class="body">학생은 별도의 버튼을 누르지 않아도 됩니다. 퀴즈를 완료하는 순간 <strong>자동으로 교사에게 결과가 전송</strong>됩니다. 다시 풀기 후 수정하면 재전송 버튼이 나타납니다.</div>
+  </div>
+
+  <div class="card">
+    <strong style="font-size:13px;color:var(--ink2);display:block;margin-bottom:.6rem">📦 전송되는 데이터 목록</strong>
+    <table class="info-table">
+      <tr><th>분류</th><th>항목</th></tr>
+      <tr><td>학생 정보</td><td>반, 번호, 이름</td></tr>
+      <tr><td>탐구 결과</td><td>E(a) 식, E'(a) 식, a₀, k, 중단조건, <strong>최종 a값</strong>, 갱신횟수, 완료여부</td></tr>
+      <tr><td>자유 서술</td><td>① 발견한 점/어려웠던 점 &nbsp;② AI 활용 연결 생각 &nbsp;③ 추가 탐구 내용</td></tr>
+      <tr><td>퀴즈 결과</td><td>점수, 정답률, 문항별 정오(Q1~Q6)</td></tr>
+      <tr><td><strong>세특 초안</strong></td><td>위 내용을 종합한 세특 문장 자동 생성</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════ SECTION 1: Apps Script ══════════════ -->
+<div class="section" id="s2">
+  <div class="section-head">
+    <div class="step-num blue">1</div>
+    <div>
+      <h2>STEP 1 — 구글 시트 + Apps Script 설정</h2>
+      <div class="section-sub">약 5분 소요</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-text">
+        <strong>구글 시트 새 파일을 만듭니다.</strong><br>
+        <a href="https://sheets.new" target="_blank" style="color:var(--blue)">sheets.new</a> 로 바로 접속하거나, 구글 드라이브에서 <span class="mono">+ 새로 만들기 → Google 스프레드시트</span>를 선택하세요.
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        <strong>Apps Script를 엽니다.</strong><br>
+        상단 메뉴에서 <span class="mono">확장 프로그램</span> → <span class="mono">Apps Script</span> 클릭
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        <strong>기존 코드를 모두 지우고 아래 코드를 붙여넣습니다.</strong><br>
+        편집창의 내용을 전체 선택(<span class="mono">Ctrl+A</span>) 후 삭제하고, 아래 코드를 붙여넣기(<span class="mono">Ctrl+V</span>)하세요.
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="cb-label">Google Apps Script — 전체 코드 (복사해서 붙여넣기)</div>
+    <button class="copy-btn" onclick="copyCode(this)">복사</button>
+    <pre id="main-code">const SHEET_RAW    = '원시데이터';
+const SHEET_RESULT = '결과요약';
+const SHEET_SESPEC = '세특초안';
+
+function doOptions(e) {
+  return ContentService.createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+}
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss   = SpreadsheetApp.getActiveSpreadsheet();
+    const rawSheet    = getOrCreateSheet(ss, SHEET_RAW);
+    const resultSheet = getOrCreateSheet(ss, SHEET_RESULT);
+    const sespecSheet = getOrCreateSheet(ss, SHEET_SESPEC);
+    initHeaders(rawSheet, resultSheet, sespecSheet);
+
+    const ts = new Date().toLocaleString('ko-KR', {timeZone:'Asia/Seoul'});
+    const isResend = data.type === 'resend';
+
+    rawSheet.appendRow([
+      ts, isResend ? '재전송' : '최초',
+      data.cls, data.num, data.name,
+      data.fa, data.da, data.a0, data.k, data.thresh,
+      data.finalA, data.fillCount, data.fillDone,
+      data.reflectDiscovery  || '',
+      data.reflectApplication|| '',
+      data.reflectCurious    || '',
+      data.quizScore, data.quizTotal, (data.quizPct||0)+'%',
+      data.q1||'—', data.q2||'—', data.q3||'—',
+      data.q4||'—', data.q5||'—', data.q6||'—',
+      data.seSpec || ''
+    ]);
+
+    upsertResult(resultSheet, ts, data, isResend);
+    upsertSeSpec(sespecSheet, ts, data);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({status:'ok', ts}))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeader('Access-Control-Allow-Origin', '*');
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({status:'error', msg: err.message}))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeader('Access-Control-Allow-Origin', '*');
+  }
+}
+
+function getOrCreateSheet(ss, name) {
+  return ss.getSheetByName(name) || ss.insertSheet(name);
+}
+
+function initHeaders(rawSheet, resultSheet, sespecSheet) {
+  if (rawSheet.getLastRow() === 0) {
+    rawSheet.appendRow([
+      '전송시각','구분','반','번호','이름',
+      'E(a)식','E\'(a)식','a₀','k','중단조건',
+      '최종a','갱신횟수','탐구완료',
+      '① 발견한 점','② AI 활용 생각','③ 추가 탐구',
+      '퀴즈점수','총점','정답률',
+      'Q1','Q2','Q3','Q4','Q5','Q6','세특초안'
+    ]);
+    rawSheet.getRange(1,1,1,rawSheet.getLastColumn())
+      .setBackground('#1a1a2e').setFontColor('#ffffff').setFontWeight('bold');
+    rawSheet.setFrozenRows(1);
+  }
+  if (resultSheet.getLastRow() === 0) {
+    resultSheet.appendRow([
+      '반','번호','이름','E(a)','E\'(a)','a₀','k','중단조건',
+      '최종 a','갱신횟수','탐구완료','발견한 점 요약','AI 활용 연결',
+      '퀴즈점수','총점','정답률(%)','성취수준','최초전송','마지막전송'
+    ]);
+    resultSheet.getRange(1,1,1,resultSheet.getLastColumn())
+      .setBackground('#0e3d6e').setFontColor('#ffffff').setFontWeight('bold');
+    resultSheet.setFrozenRows(1);
+  }
+  if (sespecSheet.getLastRow() === 0) {
+    sespecSheet.appendRow(['반','번호','이름','성취수준','세특 초안','최근전송']);
+    sespecSheet.getRange(1,1,1,6)
+      .setBackground('#1a3a1a').setFontColor('#ffffff').setFontWeight('bold');
+    sespecSheet.setColumnWidth(5, 700);
+    sespecSheet.setFrozenRows(1);
+  }
+}
+
+function upsertResult(sheet, ts, data, isResend) {
+  const rows = sheet.getDataRange().getValues();
+  const key  = data.cls+'_'+data.num+'_'+data.name;
+  let found = -1, firstTs = ts;
+  for (let i=1;i<rows.length;i++) {
+    if (rows[i][0]+'_'+rows[i][1]+'_'+rows[i][2]===key) {
+      found=i+1; firstTs=rows[i][17]||ts; break;
+    }
+  }
+  const pct   = data.quizPct||Math.round(data.quizScore/data.quizTotal*100);
+  const level = pct>=83?'상':pct>=50?'중':'하';
+  const row = [
+    data.cls,data.num,data.name,data.fa,data.da,data.a0,data.k,data.thresh,
+    data.finalA,data.fillCount,data.fillDone,
+    data.reflectDiscovery||'',data.reflectApplication||'',
+    data.quizScore,data.quizTotal,pct,level,
+    isResend?firstTs:ts, ts
+  ];
+  if (found>0) { sheet.getRange(found,1,1,row.length).setValues([row]); }
+  else { sheet.appendRow(row); found=sheet.getLastRow(); }
+  colorLevel(sheet, found, 17, level);
+}
+
+function upsertSeSpec(sheet, ts, data) {
+  const rows=sheet.getDataRange().getValues();
+  const key=data.cls+'_'+data.num+'_'+data.name;
+  let found=-1;
+  for(let i=1;i<rows.length;i++){
+    if(rows[i][0]+'_'+rows[i][1]+'_'+rows[i][2]===key){found=i+1;break;}
+  }
+  const pct=data.quizPct||Math.round(data.quizScore/data.quizTotal*100);
+  const level=pct>=83?'상':pct>=50?'중':'하';
+  const row=[data.cls,data.num,data.name,level,data.seSpec||'',ts];
+  if(found>0){sheet.getRange(found,1,1,row.length).setValues([row]);}
+  else{sheet.appendRow(row);found=sheet.getLastRow();}
+  colorLevel(sheet, found, 4, level);
+}
+
+function colorLevel(sheet, row, col, level) {
+  const bg ={'상':'#c6efce','중':'#ffeb9c','하':'#ffc7ce'};
+  const fc ={'상':'#276221','중':'#9c6500','하':'#9c0006'};
+  const cell=sheet.getRange(row,col);
+  cell.setBackground(bg[level]||'#fff');
+  cell.setFontColor(fc[level]||'#000');
+  cell.setFontWeight('bold');
+}</pre>
+  </div>
+
+  <div class="callout success">
+    <div class="icon">✅</div>
+    <div class="body">코드 붙여넣기 후 <strong>Ctrl+S (저장)</strong>을 눌러주세요. 프로젝트 이름은 자유롭게 설정하면 됩니다.</div>
+  </div>
+</div>
+
+<!-- ══════════════ SECTION 2: 배포 ══════════════ -->
+<div class="section" id="s3">
+  <div class="section-head">
+    <div class="step-num green">2</div>
+    <div>
+      <h2>STEP 2 — 웹앱으로 배포하기</h2>
+      <div class="section-sub">URL을 발급받는 단계입니다</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-text">
+        Apps Script 화면 우측 상단 <strong>배포</strong> 버튼 클릭 → <strong>새 배포</strong> 선택
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        유형 선택 아이콘 클릭 → <span class="mono">웹 앱</span> 선택
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        아래와 같이 설정합니다.<br>
+        <div style="margin-top:.5rem;padding:.7rem .9rem;background:var(--bg3);border-radius:6px;font-size:13px;line-height:2">
+          • <strong>설명</strong>: 경사하강법 탐구 (자유 입력)<br>
+          • <strong>다음 사용자로 실행</strong>: <span class="tag blue">나(본인 계정)</span><br>
+          • <strong>액세스 권한</strong>: <span class="tag green">모든 사용자(익명 포함)</span> ← 반드시 이 옵션
+        </div>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        <strong>배포</strong> 클릭 → Google 계정 권한 허용 팝업 → <strong>액세스 허용</strong>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        <strong>웹 앱 URL이 발급됩니다.</strong> 이 URL을 복사해 두세요.<br>
+        <span class="path">https://script.google.com/macros/s/AKfycb.../exec</span> 형태
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="icon">⚠️</div>
+    <div class="body"><strong>액세스 권한을 반드시 "모든 사용자"로 설정해야 합니다.</strong> "본인만" 또는 "조직 내"로 설정하면 학생 전송이 모두 실패합니다.</div>
+  </div>
+
+  <div class="callout tip">
+    <div class="icon">🔒</div>
+    <div class="body"><strong>보안 걱정이 되신다면?</strong> URL을 아는 사람만 데이터를 전송할 수 있습니다. URL이 노출되지 않는 한 외부 접근은 어렵습니다. 수업이 끝나면 배포를 <strong>보관처리</strong>해 비활성화할 수 있습니다.</div>
+  </div>
+</div>
+
+<!-- ══════════════ SECTION 3: HTML 설정 ══════════════ -->
+<div class="section" id="s4">
+  <div class="section-head">
+    <div class="step-num orange">3</div>
+    <div>
+      <h2>STEP 3 — HTML 파일에 URL 입력</h2>
+      <div class="section-sub">파일 상단 입력칸에 한 번만 설정하면 됩니다</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-text">
+        <strong>학생들이 접속한 HTML 파일을 교사 브라우저에서 엽니다.</strong><br>
+        (GitHub Pages 링크 또는 로컬 파일)
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        화면 상단 파란 배너에 <strong>Google Sheets URL</strong> 입력칸이 있습니다.<br>
+        복사해 둔 웹앱 URL을 붙여넣고 <span class="mono">[저장]</span> 버튼을 클릭하세요.
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-text">
+        <strong>✓ 저장됨</strong> 메시지가 나타나면 완료입니다.<br>
+        브라우저 localStorage에 저장되므로 <strong>다음번 접속 시 자동으로 불러옵니다.</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="icon">📌</div>
+    <div class="body">URL은 교사 PC에만 저장되면 됩니다. 학생 PC에 따로 설정할 필요가 없습니다. 학생 화면에는 URL 입력칸이 보이지만, 비워두어도 전송에 필요한 URL은 파일 내부에 없으므로 학생이 임의로 변경할 수 없습니다.<br>
+    <strong>단, GitHub Pages에 올린 파일은 코드를 수정해 URL을 하드코딩하는 방식이 더 안정적입니다.</strong> (아래 FAQ 참고)</div>
+  </div>
+</div>
+
+<!-- ══════════════ SECTION 4: 시트 활용 ══════════════ -->
+<div class="section" id="s5">
+  <div class="section-head">
+    <div class="step-num purple">4</div>
+    <div>
+      <h2>구글 시트 구성 및 활용법</h2>
+      <div class="section-sub">자동 생성되는 탭 3개</div>
+    </div>
+  </div>
+
+  <!-- 원시데이터 -->
+  <div style="font-weight:700;font-size:14px;color:var(--ink);margin-bottom:.5rem">
+    📄 원시데이터 탭 — 모든 전송 이력
+  </div>
+  <div class="sheet-preview">
+    <div class="sheet-tab-bar">
+      <div class="sheet-tab active">원시데이터</div>
+      <div class="sheet-tab">결과요약</div>
+      <div class="sheet-tab">세특초안</div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="sheet-table">
+        <tr>
+          <th>전송시각</th><th>구분</th><th>반</th><th>번호</th><th>이름</th>
+          <th>E(a)식</th><th>최종a</th><th>갱신횟수</th>
+          <th>① 발견한 점</th><th>퀴즈점수</th><th>정답률</th>
+        </tr>
+        <tr>
+          <td>2026-09-01 09:12</td><td class="cell-green">최초</td>
+          <td>3</td><td>1</td><td>김민준</td>
+          <td class="cell-blue">8a²+1</td><td>0.064</td><td>4</td>
+          <td>학습률을 바꾸면 수렴이 빨라짐</td><td>5</td><td>83%</td>
+        </tr>
+        <tr>
+          <td>2026-09-01 09:18</td><td>재전송</td>
+          <td>3</td><td>2</td><td>이서연</td>
+          <td class="cell-blue">6a²+1</td><td>0.128</td><td>4</td>
+          <td>k가 크면 발산할 수도 있겠다고 느낌</td><td>4</td><td>67%</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- 결과요약 -->
+  <div style="font-weight:700;font-size:14px;color:var(--ink);margin:.9rem 0 .5rem">
+    📊 결과요약 탭 — 학생별 최신 성취 현황
+  </div>
+  <div class="card blue" style="font-size:13px;line-height:1.8">
+    학생이 재전송하면 <strong>자동 업데이트</strong>됩니다 (최초 전송 시각은 보존).<br>
+    성취수준 칸은 퀴즈 정답률 기준으로 색상이 자동 적용됩니다.
+    <div style="display:flex;gap:.5rem;margin-top:.6rem;flex-wrap:wrap">
+      <span style="background:#c6efce;border:1px solid #a6d5ae;border-radius:4px;padding:2px 10px;font-size:12px;color:#276221;font-weight:700">상 &nbsp;(83% 이상)</span>
+      <span style="background:#ffeb9c;border:1px solid #e5c960;border-radius:4px;padding:2px 10px;font-size:12px;color:#9c6500;font-weight:700">중 &nbsp;(50~82%)</span>
+      <span style="background:#ffc7ce;border:1px solid #e5a5ae;border-radius:4px;padding:2px 10px;font-size:12px;color:#9c0006;font-weight:700">하 &nbsp;(50% 미만)</span>
+    </div>
+  </div>
+
+  <!-- 세특초안 -->
+  <div style="font-weight:700;font-size:14px;color:var(--ink);margin:.9rem 0 .5rem">
+    ✍️ 세특초안 탭 — 교사 수정용 자동 문장
+  </div>
+  <div class="sheet-preview">
+    <div class="sheet-tab-bar">
+      <div class="sheet-tab">원시데이터</div>
+      <div class="sheet-tab">결과요약</div>
+      <div class="sheet-tab active">세특초안</div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="sheet-table">
+        <tr><th>반</th><th>번호</th><th>이름</th><th>성취수준</th><th style="min-width:420px">세특 초안 (수정 후 사용)</th></tr>
+        <tr>
+          <td>3</td><td>1</td><td>김민준</td>
+          <td class="cell-green">상</td>
+          <td style="font-size:11px;color:#333;white-space:normal;line-height:1.6">
+            [인공지능수학] E(a)=8a²+1에서 E'(a)=16a를 도출하고, a₀=40, k=0.05로 4회 갱신 끝에 a=0.064를 결정함. "학습률을 바꾸니 수렴 속도가 달라졌다"라고 서술하였으며, AI 활용에 대해 "추천 알고리즘에 활용될 것 같다"라고 연결 지어 사고함. 퀴즈 6문항 중 5문항 정답(83%)을 기록하여 경사하강법의 원리를 정확히 이해함. (성취수준: 상)
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SECTION 5: 세특 활용 ══════════════ -->
+<div class="section" id="s6">
+  <div class="section-head">
+    <div class="step-num gold">5</div>
+    <div>
+      <h2>세특 초안 활용법</h2>
+      <div class="section-sub">자동 생성 문장을 교사가 검토·수정하여 사용</div>
+    </div>
+  </div>
+
+  <div class="card gold">
+    <strong style="display:block;margin-bottom:.5rem;font-size:13px">자동 생성 세특 문장 구조</strong>
+    <div style="font-size:13px;line-height:2;color:var(--ink2)">
+      <span style="background:#ead98a;padding:1px 5px;border-radius:3px;color:#5a3e00;font-weight:600">[과목명]</span>
+      &nbsp;
+      <span style="background:#c6efce;padding:1px 5px;border-radius:3px;color:#276221;font-weight:600">탐구 결과</span>
+      &nbsp;→&nbsp;
+      <span style="background:#d7c0e8;padding:1px 5px;border-radius:3px;color:#4a1a7a;font-weight:600">자유 서술 인용</span>
+      &nbsp;→&nbsp;
+      <span style="background:#c6d8f5;padding:1px 5px;border-radius:3px;color:#1a3a8a;font-weight:600">퀴즈 성취</span>
+      &nbsp;→&nbsp;
+      <span style="background:#ffc7ce;padding:1px 5px;border-radius:3px;color:#9c0006;font-weight:600">성취수준</span>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="icon">✍️</div>
+    <div class="body">
+      <strong>추천 활용 순서</strong><br>
+      1. 세특초안 탭에서 해당 학생 행 복사<br>
+      2. 학생 서술 내용(원시데이터 탭)을 참고해 수정<br>
+      3. 과목 특성·학생 특이사항 추가<br>
+      4. 결과요약 탭의 성취수준 최종 확인 후 기재
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SECTION 6: FAQ ══════════════ -->
+<div class="section" id="s7">
+  <div class="section-head">
+    <div class="step-num blue">?</div>
+    <div>
+      <h2>자주 묻는 질문 (FAQ)</h2>
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">
+      GitHub Pages에 올리면 URL이 매번 초기화되지 않나요?
+      <span class="arrow">▼</span>
+    </div>
+    <div class="faq-a">
+      GitHub Pages에 올린 파일은 모든 학생이 같은 파일을 공유합니다. URL 입력칸에 입력해도 각자의 브라우저 localStorage에만 저장되므로, 교사 PC에서 설정해도 학생 PC에는 적용되지 않습니다.<br><br>
+      <strong>해결 방법:</strong> HTML 파일의 <span style="font-family:var(--mono);font-size:12px">id="gs-url"</span> 입력칸의 <span style="font-family:var(--mono);font-size:12px">placeholder</span> 속성 옆에 <span style="font-family:var(--mono);font-size:12px">value="https://script.google.com/..."</span> 를 직접 넣어 저장한 뒤 GitHub에 업로드하면 됩니다.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">
+      코드 수정 후 재배포하면 URL이 바뀌나요?
+      <span class="arrow">▼</span>
+    </div>
+    <div class="faq-a">
+      <strong>새 배포</strong>를 하면 URL이 바뀝니다. 기존 URL을 유지하려면 배포 → <strong>배포 관리</strong> → 기존 배포 선택 → <strong>수정</strong>을 사용하세요. 이렇게 하면 같은 URL에서 업데이트된 코드로 작동합니다.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">
+      학생이 퀴즈를 다시 풀면 데이터가 덮어써지나요?
+      <span class="arrow">▼</span>
+    </div>
+    <div class="faq-a">
+      <strong>원시데이터 탭</strong>에는 모든 전송 이력이 쌓입니다(최초/재전송 구분 표시).<br>
+      <strong>결과요약·세특초안 탭</strong>은 같은 학생(반+번호+이름)이 재전송하면 최신 내용으로 업데이트됩니다. 최초 전송 시각은 보존됩니다.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">
+      학생이 이름을 잘못 입력하면 중복 행이 생기나요?
+      <span class="arrow">▼</span>
+    </div>
+    <div class="faq-a">
+      반+번호+이름 세 가지를 키로 사용합니다. 이름이 조금이라도 다르면 별도 행으로 추가됩니다. 원시데이터 탭에서 확인 후 중복 행을 수동으로 삭제하시면 됩니다.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">
+      수업이 끝난 후 데이터 수집을 막으려면?
+      <span class="arrow">▼</span>
+    </div>
+    <div class="faq-a">
+      Apps Script → 배포 → 배포 관리 → 해당 배포 선택 → <strong>보관처리</strong>를 클릭하면 URL이 비활성화됩니다. 이후 전송 시도는 모두 오류로 처리됩니다.
+    </div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">
+      태블릿(갤럭시탭, iPad)에서도 전송이 되나요?
+      <span class="arrow">▼</span>
+    </div>
+    <div class="faq-a">
+      Safari(iOS)와 Chrome(Android) 모두 지원합니다. 단, Safari의 개인정보 보호 모드(Private)에서는 localStorage가 작동하지 않아 최초 전송 플래그가 저장되지 않을 수 있습니다. 일반 모드로 접속하도록 안내해 주세요.
+    </div>
+  </div>
+</div>
+
+<!-- ── 푸터 ── -->
+<div class="doc-footer">
+  경사하강법 탐구 HTML · 구글시트 연동 설명서<br>
+  AI 수학 수업 자료 · carpediem1123.github.io/AI_Math-GradientDescent/<br>
+  문서 작성: Claude (Anthropic) · 2026
+</div>
+
+<script>
+function copyCode(btn){
+  const code = document.getElementById('main-code').textContent;
+  navigator.clipboard.writeText(code).then(()=>{
+    btn.textContent='✓ 복사됨';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='복사'; btn.classList.remove('copied'); },2000);
+  });
+}
+function toggleFaq(el){
+  const ans = el.nextElementSibling;
+  const isOpen = ans.classList.contains('show');
+  document.querySelectorAll('.faq-a').forEach(a=>a.classList.remove('show'));
+  document.querySelectorAll('.faq-q').forEach(q=>q.classList.remove('open'));
+  if(!isOpen){ ans.classList.add('show'); el.classList.add('open'); }
+}
+</script>
+</body>
+</html>
